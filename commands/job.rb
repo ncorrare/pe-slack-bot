@@ -92,7 +92,7 @@ module PESlackBot
 	      else
 		environment = "production"
 	      end
-	      parameters = { "environment" => environment, "scope" => { match[:noun] => argument } }.to_json
+	      parameters = { "environment" => environment, "scope" => { scope => argument } }.to_json
 	      request.body = parameters
 	      response = orch.request(request)
 	      if response.code.to_i.between?(199,299)
