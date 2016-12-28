@@ -76,13 +76,23 @@ module PESlackBot
             when 'run'
 	      request = Net::HTTP::Post.new("/orchestrator/v1/command/deploy")
               request.add_field("X-Authentication", token)
-	      if match[:argument].include?('noop') || match[:mode].include?('noop')
-	        noop = ', "noop": "true"'
+	      case match[:noun]
+		when "nodes"
+		  argument = match[:mode].split(',')
+                  scope = "nodes"
+		when "application"
+		  argument = match[:mode]
+		  scope = "application"
+		when "query"
+		  argument = match[:mode]
+		  scope = "query"
+		end
+	      if match[:mode].include?('environment')
+	        environment = match[:mode].match('/(?<=\benvironment\s)(\w+)/')
+	      else
+		environment = "production"
 	      end
-	      if match[:argument] =~ /^[A-Z]\w+\['\w+'\]/
-	        target = ", \"target\": \"#{match[:argument]}\""
-	      end
-	      parameters = "{ \"environment\": \"#{match[:noun]}\"#{target}#{noop}}"
+	      parameters = { "environment" => environment, "scope" => { match[:noun] => argument } }.to_json
 	      request.body = parameters
 	      response = orch.request(request)
 	      if response.code.to_i.between?(199,299)
@@ -91,6 +101,36 @@ module PESlackBot
 	      else
 		client.say(channel: data.channel, text: "Error sending job to the orchestrator: #{response.body}\n #{parameters}")
 	      end
+            when 'noop'
+	      request = Net::HTTP::Post.new("/orchestrator/v1/command/deploy")
+              request.add_field("X-Authentication", token)
+	      case match[:noun]
+		when "nodes"
+		  argument = match[:mode].split(',')
+                  scope = "nodes"
+		when "application"
+		  argument = match[:mode]
+		  scope = "application"
+		when "query"
+		  argument = match[:mode]
+		  scope = "query"
+		end
+	      if match[:mode].include?('environment')
+	        environment = match[:mode].match('/(?<=\benvironment\s)(\w+)/')
+	      else
+		environment = "production"
+	      end
+	      parameters = { "environment" => environment, "noop" => true, "scope" => { match[:noun] => argument } }.to_json
+	      request.body = parameters
+	      response = orch.request(request)
+	      if response.code.to_i.between?(199,299)
+		job = JSON.parse(response.body)
+	        client.say(channel: data.channel, text: "Job #{job['job']['name']} sent to the orchestrator, type puppet job show #{job['job']['name']} to see more details")
+	      else
+		client.say(channel: data.channel, text: "Error sending job to the orchestrator: #{response.body}\n #{parameters}")
+	      end
+
+
               #run a particular job. Requires at least environment as noun and an optional application as argument and noop flag as mode 
             when 'show'
               attachments = Array.new
